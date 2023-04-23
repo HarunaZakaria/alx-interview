@@ -10,43 +10,58 @@ The data will be represented by a list of integers
 Each integer represents 1 byte of data, therefore you only need to handle the 8 least significant bits of each integer
 """
 
+
+    
+
+
 def validUTF8(data):
-    """
-    Returns True if the given data set represents a valid UTF-8 encoding, and False otherwise.
-    """
-    num_bytes = 0
-    
-    # Iterate through each byte in the data set
-    for byte in data:
-        
-        # If this is the start of a new character sequence
-        if num_bytes == 0:
-            if (byte >> 7) == 0b0:
-                # This is a single-byte character
+        NUMBER_OF_BITS_PER_BLOCK = 8
+        MAX_NUMBER_OF_ONES = 4
+        """
+        :type data: List[int]
+        :rtype: bool
+        """
+        index = 0
+        while index < len(data):
+            number = data[index] & (2 ** 7)
+            number >>= (NUMBER_OF_BITS_PER_BLOCK - 1)
+            if number == 0:  # single byte char
+                index += 1
                 continue
-            elif (byte >> 5) == 0b110:
-                # This is the start of a two-byte character
-                num_bytes = 1
-            elif (byte >> 4) == 0b1110:
-                # This is the start of a three-byte character
-                num_bytes = 2
-            elif (byte >> 3) == 0b11110:
-                # This is the start of a four-byte character
-                num_bytes = 3
-            else:
-                # This byte is not the start of a valid character sequence
-                return False
-        
-        else:
-            # This byte should be a continuation byte
-            if (byte >> 6) != 0b10:
-                # This byte is not a continuation byte
-                return False
-            
-            num_bytes -= 1
-            
-    # If we reached the end of the data set and there are still bytes left in the current sequence
-    if num_bytes != 0:
-        return False
-    
-    return True
+
+            # validate multi-byte char
+            number_of_ones = 0
+            while True:  # get the number of significant ones
+                number = data[index] & (2 ** (7 - number_of_ones))
+                number >>= (NUMBER_OF_BITS_PER_BLOCK - number_of_ones - 1)
+                if number == 1:
+                    number_of_ones += 1
+                else:
+                    break
+
+                if number_of_ones > MAX_NUMBER_OF_ONES:
+                    return False  # too much ones per char sequence
+
+            if number_of_ones == 1:
+                return False  # there has to be at least 2 ones
+
+            index += 1  # move on to check the next byte in a multi-byte char sequence
+
+            # check for out of bounds and exit early
+            if index >= len(data) or index >= (index + number_of_ones - 1):
+                return False  
+
+            # every next byte has to start with "10"
+            for i in range(index, index + number_of_ones - 1):
+                number = data[i]
+
+                number >>= (NUMBER_OF_BITS_PER_BLOCK - 1)
+                if number != 1:
+                    return False
+                number >>= (NUMBER_OF_BITS_PER_BLOCK - 1)
+                if number != 0:
+                    return False
+
+                index += 1
+
+        return True
